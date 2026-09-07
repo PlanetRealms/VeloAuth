@@ -8,10 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -243,6 +240,10 @@ public class Settings {
         return activeSnapshot().authServer().mode();
     }
 
+    public List<String> getAuthServerFallbackTry() {
+        return activeSnapshot().authServer().fallbackTry();
+    }
+    
     public EmbeddedAuthServerSettings getEmbeddedAuthServerSettings() {
         return activeSnapshot().authServer().embedded();
     }
@@ -725,7 +726,9 @@ public class Settings {
             String mode,
             String serverName,
             int timeoutSeconds,
-            EmbeddedAuthServerSettings embedded) {
+            List<String> fallbackTry,
+            EmbeddedAuthServerSettings embedded
+    ) {
     }
 
     record HotSettings(
@@ -758,6 +761,7 @@ public class Settings {
                     new CacheConfig(60, 10_000, 5, 60, 24, 0.8),
                     new AuthServerConfig(
                             AuthServerMode.EXTERNAL.getConfigValue(), "limbo", 300,
+                            new ArrayList<>(),
                             new EmbeddedAuthServerSettings()),
                     new ConnectionSettings(30, 3000, 1500),
                     new PasswordSettings(10, 3, 8, 72, new PasswordPolicy()),

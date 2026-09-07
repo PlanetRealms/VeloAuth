@@ -91,6 +91,9 @@ auth-server:
   # Set to 0 (or any value <= 0) to disable the kick — the player can stay on
   # the auth/limbo server indefinitely.
   timeout-seconds: 300
+  # Server to transfer to after successful authentication if we cannot determine the original target from Velocity's try-list.
+  fallback-try:
+    - queue
   embedded:
     # The release-pinned, maintainer-reviewed ViaVersion runtime supports Java 1.8
     # through 26.2. Remote runtime staging is disabled by default. Opting in permits

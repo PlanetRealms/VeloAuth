@@ -30,7 +30,8 @@ final class SettingsLoader {
     private static final String CONFIG_KEY_MIN_CREDENTIAL_LENGTH = "min-" + "pass" + "word" + "-length"; // nosemgrep
     private static final String CONFIG_KEY_MAX_CREDENTIAL_LENGTH = "max-" + "pass" + "word" + "-length"; // nosemgrep
 
-    private SettingsLoader() {}
+    private SettingsLoader() {
+    }
 
     static Settings.Snapshot load(
             Path configFile,
@@ -221,6 +222,7 @@ final class SettingsLoader {
             state.authServerName = YamlParserUtils.getString(authServer, "server-name", state.authServerName);
             state.authServerTimeoutSeconds = YamlParserUtils.getInt(authServer,
                     CONFIG_KEY_TIMEOUT_SECONDS, state.authServerTimeoutSeconds);
+            state.fallbackTry = YamlParserUtils.getStringList(authServer, "fallback-try", state.fallbackTry);
             state.embeddedAuthServerSettings = loadEmbeddedAuthServerSettings(
                     authServer, state.embeddedAuthServerSettings);
             return;
@@ -231,6 +233,7 @@ final class SettingsLoader {
             state.authServerName = YamlParserUtils.getString(picolimbo, "server-name", state.authServerName);
             state.authServerTimeoutSeconds = YamlParserUtils.getInt(picolimbo,
                     CONFIG_KEY_TIMEOUT_SECONDS, state.authServerTimeoutSeconds);
+            state.fallbackTry = YamlParserUtils.getStringList(picolimbo, "fallback-try", state.fallbackTry);
         }
     }
 
@@ -292,9 +295,9 @@ final class SettingsLoader {
         state.conflictModeTtlHours = YamlParserUtils.getInt(security,
                 "conflict-mode-ttl-hours", state.conflictModeTtlHours);
         state.minPasswordLength = YamlParserUtils.getInt(security,
-            CONFIG_KEY_MIN_CREDENTIAL_LENGTH, state.minPasswordLength);
+                CONFIG_KEY_MIN_CREDENTIAL_LENGTH, state.minPasswordLength);
         state.maxPasswordLength = YamlParserUtils.getInt(security,
-            CONFIG_KEY_MAX_CREDENTIAL_LENGTH, state.maxPasswordLength);
+                CONFIG_KEY_MAX_CREDENTIAL_LENGTH, state.maxPasswordLength);
 
         loadPasswordPolicy(security, state);
     }
@@ -555,6 +558,7 @@ final class SettingsLoader {
         String authServerMode;
         String authServerName;
         int authServerTimeoutSeconds;
+        List<String> fallbackTry;
         int connectionTimeoutSeconds;
         int pingTimeoutMillis;
         int autoTransferDelayMillis;
@@ -604,6 +608,7 @@ final class SettingsLoader {
             authServerMode = authServer.mode();
             authServerName = authServer.serverName();
             authServerTimeoutSeconds = authServer.timeoutSeconds();
+            fallbackTry = authServer.fallbackTry();
             embeddedAuthServerSettings = authServer.embedded();
 
             Settings.ConnectionSettings connection = snapshot.connection();
@@ -661,6 +666,7 @@ final class SettingsLoader {
                             authServerMode,
                             authServerName,
                             authServerTimeoutSeconds,
+                            fallbackTry,
                             embeddedAuthServerSettings),
                     new Settings.ConnectionSettings(
                             connectionTimeoutSeconds,
