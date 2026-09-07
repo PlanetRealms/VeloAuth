@@ -3,7 +3,9 @@ package net.rafalohaki.veloauth.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility methods for parsing YAML configuration values.
@@ -28,6 +30,30 @@ final class YamlParserUtils {
             return value.toString();
         } catch (Exception e) {
             logger.warn("Error converting value to string for key '{}', using default: {}", key, defaultValue);
+            return defaultValue;
+        }
+    }
+    
+    static List<String> getStringList(Map<String, Object> map, String key, List<String> defaultValue) {
+        if (map == null || key == null) {
+            logger.warn("Null map or key in getStringList, using default: {}", defaultValue);
+            return defaultValue;
+        }
+        Object value = map.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof List<?> list) {
+            try {
+                return list.stream()
+                        .map(Object::toString)
+                        .collect(Collectors.toList());
+            } catch (Exception e) {
+                logger.warn("Error converting list values to strings for key '{}', using default: {}", key, defaultValue);
+                return defaultValue;
+            }
+        } else {
+            logger.warn("Expected a list for key '{}', but got: {}, using default: {}", key, value.getClass().getSimpleName(), defaultValue);
             return defaultValue;
         }
     }

@@ -12,12 +12,16 @@ import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
-/** Single restart-scoped owner of the external or self-contained authentication topology. */
+/**
+ * Single restart-scoped owner of the external or self-contained authentication topology.
+ */
 public final class AuthServerProvider implements AutoCloseable {
 
     public static final String EMBEDDED_SERVER_NAME = "veloauth-embedded-limbo";
@@ -29,6 +33,7 @@ public final class AuthServerProvider implements AutoCloseable {
     private final Messages messages;
     private final Settings.AuthServerMode mode;
     private final String serverName;
+    private final List<String> fallbackTry;
     private final EmbeddedConfig embeddedConfig;
     private final Path dataDirectory;
     private final RuntimeFactory runtimeFactory;
@@ -39,7 +44,9 @@ public final class AuthServerProvider implements AutoCloseable {
     private volatile EmbeddedLimboServer embeddedServer;
     private volatile ProtocolRuntime protocolRuntime;
 
-    /** Embedded-mode wiring; external mode passes {@code null} for every component. */
+    /**
+     * Embedded-mode wiring; external mode passes {@code null} for every component.
+     */
     private record EmbeddedWiring(
             EmbeddedConfig config, Path dataDirectory, RuntimeFactory runtimeFactory) {
         static final EmbeddedWiring NONE = new EmbeddedWiring(null, null, null);
@@ -51,18 +58,22 @@ public final class AuthServerProvider implements AutoCloseable {
             Messages messages,
             Settings.AuthServerMode mode,
             String serverName,
+            List<String> fallbackTry,
             EmbeddedWiring embedded) {
         this.proxyServer = Objects.requireNonNull(proxyServer, "proxyServer");
         this.logger = Objects.requireNonNull(logger, "logger");
         this.messages = messages;
         this.mode = Objects.requireNonNull(mode, "mode");
         this.serverName = Objects.requireNonNull(serverName, "serverName");
+        this.fallbackTry = Objects.requireNonNull(fallbackTry, "fallbackTry");
         this.embeddedConfig = embedded.config();
         this.dataDirectory = embedded.dataDirectory();
         this.runtimeFactory = embedded.runtimeFactory();
     }
 
-    /** Creates a provider from the validated restart-scoped configuration. */
+    /**
+     * Creates a provider from the validated restart-scoped configuration.
+     */
     public static AuthServerProvider create(
             ProxyServer proxyServer,
             Settings settings,
@@ -100,13 +111,16 @@ public final class AuthServerProvider implements AutoCloseable {
                 Objects.requireNonNull(messages, "messages"),
                 configuredMode,
                 EMBEDDED_SERVER_NAME,
+                new ArrayList<>(),
                 new EmbeddedWiring(
                         snapshot,
                         Objects.requireNonNull(dataDirectory, "dataDirectory").toAbsolutePath().normalize(),
                         Objects.requireNonNull(runtimeFactory, "runtimeFactory")));
     }
 
-    /** Compatibility factory used by existing external-mode integrations and tests. */
+    /**
+     * Compatibility factory used by existing external-mode integrations and tests.
+     */
     public static AuthServerProvider forExternal(
             ProxyServer proxyServer,
             String serverName,
@@ -116,10 +130,12 @@ public final class AuthServerProvider implements AutoCloseable {
         }
         return new AuthServerProvider(
                 proxyServer, logger, null, Settings.AuthServerMode.EXTERNAL, serverName,
-                EmbeddedWiring.NONE);
+                new ArrayList<>(), EmbeddedWiring.NONE);
     }
 
-    /** Starts and atomically publishes the selected topology. */
+    /**
+     * Starts and atomically publishes the selected topology.
+     */
     public void start() {
         if (!state.compareAndSet(State.NEW, State.STARTING)) {
             throw new IllegalStateException("Auth-server provider can only be started once (state=" + state.get() + ')');
@@ -232,7 +248,9 @@ public final class AuthServerProvider implements AutoCloseable {
                 messages.component("embedded.disconnect.timeout", NamedTextColor.RED));
     }
 
-    /** Returns the currently usable auth server without exposing a partially started listener. */
+    /**
+     * Returns the currently usable auth server without exposing a partially started listener.
+     */
     public Optional<RegisteredServer> resolve() {
         if (state.get() != State.READY) {
             return Optional.empty();
@@ -250,7 +268,9 @@ public final class AuthServerProvider implements AutoCloseable {
                 .filter(current -> serverInfo.equals(current.getServerInfo()));
     }
 
-    /** Checks a server identity against the provider's restart-scoped topology. */
+    /**
+     * Checks a server identity against the provider's restart-scoped topology.
+     */
     public boolean isAuthServer(RegisteredServer server) {
         if (server == null) {
             return false;
@@ -263,7 +283,9 @@ public final class AuthServerProvider implements AutoCloseable {
                 && serverInfo.equals(server.getServerInfo());
     }
 
-    /** Authorizes one upcoming Velocity redirect into the private loopback listener. */
+    /**
+     * Authorizes one upcoming Velocity redirect into the private loopback listener.
+     */
     public Preparation prepare(Player player) {
         Objects.requireNonNull(player, "player");
         if (mode == Settings.AuthServerMode.EXTERNAL) {
@@ -293,6 +315,10 @@ public final class AuthServerProvider implements AutoCloseable {
         return serverName;
     }
 
+    public List<String> fallbackTry() {
+        return fallbackTry;
+    }
+
     public Settings.AuthServerMode mode() {
         return mode;
     }
@@ -309,7 +335,9 @@ public final class AuthServerProvider implements AutoCloseable {
                 + (runtime == null ? BuildConstants.EMBEDDED_VIAVERSION_VERSION : runtime.runtimeVersion()) + ')';
     }
 
-    /** Stages the maintainer-reviewed candidate without touching the current translator. */
+    /**
+     * Stages the maintainer-reviewed candidate without touching the current translator.
+     */
     public void stageProtocolRuntimeUpdate() {
         if (!isProtocolRuntimeUpdateEnabled()) {
             return;
@@ -331,7 +359,9 @@ public final class AuthServerProvider implements AutoCloseable {
         }
     }
 
-    /** Returns whether this restart-scoped provider opted into reviewed runtime staging. */
+    /**
+     * Returns whether this restart-scoped provider opted into reviewed runtime staging.
+     */
     public boolean isProtocolRuntimeUpdateEnabled() {
         return mode == Settings.AuthServerMode.EMBEDDED
                 && embeddedConfig.reviewedRuntimeUpdatesEnabled();

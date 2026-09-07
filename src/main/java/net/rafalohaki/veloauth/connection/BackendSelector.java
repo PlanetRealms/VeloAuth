@@ -17,7 +17,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
 
-/** Selects reachable non-auth backends while preserving Velocity routing priority. */
+/**
+ * Selects reachable non-auth backends while preserving Velocity routing priority.
+ */
 final class BackendSelector {
 
     private static final long BACKEND_FALLBACK_WARN_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
@@ -76,10 +78,18 @@ final class BackendSelector {
                     Set<String> alreadyChecked = tryCandidates.stream()
                             .map(server -> server.getServerInfo().getName())
                             .collect(java.util.stream.Collectors.toUnmodifiableSet());
-                    List<RegisteredServer> fallbackCandidates = proxyServer.getAllServers().stream()
+
+                    List<RegisteredServer> fallbackCandidates = authServerProvider.fallbackTry().stream()
+                            .map(proxyServer::getServer)
+                            .flatMap(Optional::stream)
                             .filter(server -> !authServerProvider.isAuthServer(server))
                             .filter(server -> !alreadyChecked.contains(server.getServerInfo().getName()))
                             .toList();
+                    // REMOVED AND REPLACED FOR THE TRY LIST ABOVE
+//                    List<RegisteredServer> fallbackCandidates = proxyServer.getAllServers().stream()
+//                            .filter(server -> !authServerProvider.isAuthServer(server))
+//                            .filter(server -> !alreadyChecked.contains(server.getServerInfo().getName()))
+//                            .toList();
                     return pickFirstAvailable(fallbackCandidates, state);
                 });
         return rejectUnavailableSelection(state, selection);
